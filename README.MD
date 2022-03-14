@@ -1,6 +1,6 @@
 ![logo-article](https://files.realpython.com/media/Python-3.11-Preview-Even-Better-Error-Messages_Watermarked.4339b8068acd.jpg)
 
-# Python 3.11 Preview: Even Better Error Messages
+# [Python 3.11 Preview: Even Better Error Messages](https://realpython.com/python311-error-messages/)
 
 ## by [Geir Arne Hjelle](https://realpython.com/python311-error-messages/#author)
 
