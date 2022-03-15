@@ -19,3 +19,30 @@ Some of the currently announced highlights of Python 3.11 include:
 ° **Static typing** improvements, which will let you annotate your code more precisely.
 
 There’s a lot to look forward to in the upcoming Python 3.11 release! In this tutorial, you’ll focus on how the enhanced error reporting can improve your developer experience by letting you debug your code more efficiently. You’ll also get a peek at some of the other, smaller features that’ll be shipping with Python 3.11.
+
+## Installation
+
+To play with the code examples in this tutorial, you’ll need to install a version of Python 3.11 onto your system. In this section, you’ll learn about a few different ways to do this: using **Docker**, using **pyenv**, or installing from **source**. Pick the one that works best for you and your system.
+
+If you have access to [Docker](https://docs.docker.com/get-docker/) on your system, then you can download the latest version of Python 3.11 by pulling and running the python:3.11-rc-slim [Docker image](https://hub.docker.com/_/python):
+
+```shell
+$ docker pull python:3.11-rc-slim
+Unable to find image 'python:3.11-rc-slim' locally
+latest: Pulling from library/python
+[...]
+
+$ docker run -it --rm python:3.11-rc-slim
+```
+
+This drops you into a Python 3.11 REPL. Check out [Run Python Versions in Docker](https://realpython.com/python-versions-docker/#running-python-in-a-docker-container) for more information about how you can work with Python through Docker, including how you can run scripts.
+
+The [pyenv](https://realpython.com/intro-to-pyenv/) tool is great for managing different versions of Python on your system, and you can use it to install Python 3.11 Alpha if you like. It comes with two different versions, one for Windows and one for Linux and macOS:
+
+On Linux and macOS, you can use pyenv. First update your pyenv installation, using the pyenv-update plugin:
+
+```shell
+$ pyenv update
+Updating /home/realpython/.pyenv...
+[...]
+```
