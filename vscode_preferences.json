@@ -1,0 +1,50 @@
+{
+  "editor.fontSize": 20,
+  "editor.fontFamily": "Fira Code",
+  "editor.fontLigatures": true,
+  "editor.minimap.enabled": false,
+  "editor.wordWrap": "on",
+  "explorer.compactFolders": false,
+  "terminal.integrated.fontSize": 16,
+  "workbench.editor.tabSizing": "shrink",
+  "workbench.iconTheme": "material-icon-theme",
+  "editor.tabSize": 2,
+  "editor.formatOnSave": true,
+  "editor.suggestSelection": "first",
+  "files.exclude": {
+    "**/.classpath": true,
+    "**/.project": true,
+    "**/.settings": true,
+    "**/.factorypath": true
+  },
+  "explorer.confirmDelete": false,
+  "explorer.confirmDragAndDrop": false,
+  "python.defaultInterpreterPath": "C:\\Users\\CarlosViniMSouza\\AppData\\Local\\Programs\\Python\\Python310\\python.exe",
+  "extensions.ignoreRecommendations": true,
+  "workbench.startupEditor": "none",
+  "workbench.colorTheme": "nightfall",
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.python"
+  },
+  "git.confirmSync": false,
+  "dart.flutterSdkPath": "E:\\Downloads\\flutter\\bin",
+  "dart.sdkPath": "E:\\Downloads\\flutter\\bin\\cache\\dart-sdk",
+  "terminal.integrated.profiles.windows": {
+    "PowerShell": {
+      "source": "PowerShell",
+      "icon": "terminal-powershell"
+    },
+    "Command Prompt": {
+      "path": [
+        "${env:windir}\\Sysnative\\cmd.exe",
+        "${env:windir}\\System32\\cmd.exe"
+      ],
+      "args": [],
+      "icon": "terminal-cmd"
+    },
+    "Git Bash": {
+      "source": "Git Bash"
+    }
+  },
+  "terminal.integrated.defaultProfile.windows": "Git Bash"
+}
