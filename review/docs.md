@@ -46,3 +46,26 @@ $ pyenv update
 Updating /home/realpython/.pyenv...
 [...]
 ```
+
+Doing an update ensures that you can install the latest version of Python. If you don’t want to use the update plugin, you can [update pyenv manually](https://github.com/pyenv/pyenv#upgrading).
+
+Use pyenv install --list to check which versions of Python 3.11 are available. Then, install the latest one:
+
+```shell
+$ pyenv install 3.11.0a5
+Downloading Python-3.11.0a5.tar.xz...
+[...]
+```
+
+The installation may take a few minutes. Once your new alpha version is installed, then you can create a [virtual environment](https://realpython.com/python-virtual-environments-a-primer/) where you can play with it:
+
+```shell
+$ pyenv virtualenv 3.11.0a5 311_preview
+$ pyenv activate 311_preview
+```
+
+On Linux and macOS, you use the [pyenv-virtualenv](https://github.com/pyenv/pyenv-virtualenv) plugin to set up the virtual environment and activate it.
+
+You can also install Python from one of pre-release versions available on [python.org](https://www.python.org/). Choose the [latest pre-release](https://www.python.org/download/pre-releases/) and scroll down to the Files section at the bottom of the page. Download and install the file corresponding to your system. See [Python 3 Installation & Setup Guide](https://realpython.com/installing-python/) for more information.
+
+In the rest of the tutorial, `python3.11` is used to indicate that you should start your Python 3.11 executable. Exactly how you run it depends on how you installed it. See the relevant tutorial on [Docker](https://realpython.com/python-versions-docker/#running-python-in-a-docker-container), [pyenv](https://realpython.com/intro-to-pyenv/), [virtual environments](https://realpython.com/python-virtual-environments-a-primer/), or [installing from source](https://realpython.com/installing-python/) if you’re uncertain.
