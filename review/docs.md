@@ -175,96 +175,75 @@ The added clarity in error messages will help you quickly track down problems as
 
 Marking which part of a line causes an error may seem like a quick and obvious improvement. Why hasn’t Python included this before?
 
-To appreciate the technical details, you should know a little about how CPython runs your source code:
+To appreciate the technical details, you should know a little about how CPython [runs your source code](https://devguide.python.org/compiler/):
 
-Your code is tokenized.
-The tokens are parsed into an abstract syntax tree (AST).
-The AST is transformed into a control flow graph (CFG).
-The CFG is converted into bytecode.
+1. Your code is [tokenized](https://docs.python.org/3/library/tokenize.html).
+
+2. The tokens are parsed into an [abstract syntax tree (AST)](https://docs.python.org/3/library/ast.html).
+
+3. The AST is transformed into a [control flow graph (CFG)](https://en.wikipedia.org/wiki/Control-flow_graph).
+
+4. The CFG is converted into [bytecode](https://en.wikipedia.org/wiki/Bytecode).
+
 At runtime, the Python interpreter only concerns itself with the bytecode, which is several steps removed from your source code.
 
-Several modules in the standard library allow you to peek behind the curtain of this process. You can, for example, use dis to disassemble the bytecode. Remember the definition of convert_pair():
+Several modules in the standard library allow you to peek behind the curtain of this process. You can, for example, use [dis](https://docs.python.org/3/library/dis.html) to disassemble the bytecode. Remember the definition of `convert_pair()`:
 
+```python
 def convert_pair(first, second):
     """Convert two dictionaries to Person objects"""
     return dict_to_person(first), dict_to_person(second)
+```
+
 As noted, this code is tokenized, parsed, and ultimately converted into bytecode. You can investigate the bytecode of this function as follows:
 
->>> import dis
->>> dis.dis(convert_pair)
- 17           0 RESUME                   0
-
- 19           2 LOAD_GLOBAL              0 (dict_to_person)
-              4 LOAD_FAST                0 (first)
-              6 PRECALL_FUNCTION         1
-              8 CALL                     0
-             10 LOAD_GLOBAL              0 (dict_to_person)
-             12 LOAD_FAST                1 (second)
-             14 PRECALL_FUNCTION         1
-             16 CALL                     0
-             18 BUILD_TUPLE              2
-             20 RETURN_VALUE
 The meaning of each instruction isn’t important here. Just take note of the numbers in the leftmost column: 17 and 19 are the line numbers of the original source code. You can see that line 19 has been converted into ten bytecode instructions. If any of those instructions fail, earlier versions of Python only had enough information to conclude that the error happened somewhere on line 19.
 
-Python 3.11 introduces a new tuple of four numbers for each bytecode instruction. They indicate the start line, end line, start column offset, and end column offset of each instruction. You can access these tuples by calling the new .co_positions() method on a code object:
+Python 3.11 introduces a new tuple of four numbers for each bytecode instruction. They indicate the **start line, end line, start column offset,** and **end column offset** of each instruction. You can access these tuples by calling the new [.co_positions()](https://docs.python.org/3.11/reference/datamodel.html#codeobject.co_positions) method on a code object:
 
->>> list(convert_pair.__code__.co_positions())
-[(17, 17, 0, 0), (19, 19, 11, 25), (19, 19, 26, 31), (19, 19, 11, 32),
- (19, 19, 11, 32), (19, 19, 34, 48), (19, 19, 49, 55), (19, 19, 34, 56),
- (19, 19, 34, 56), (19, 19, 11, 56), (19, 19, 4, 56)]
-For example, the first LOAD_GLOBAL instruction has the positions (19, 19, 11, 25). Look at line 19 of your source code. By counting from 0, you find that d is the 11th character in the line. You discover that column offsets 11 to 25 correspond to the text dict_to_person. Connect all line numbers and column offsets to your source code and match them to the bytecode instructions to create the following table:
+For example, the first LOAD_GLOBAL instruction has the positions (19, 19, 11, 25). Look at line 19 of your source code. By counting from 0, you find that d is the 11th character in the line. You discover that column offsets 11 to 25 correspond to the text `dict_to_person`. Connect all line numbers and column offsets to your source code and match them to the bytecode instructions to create the following table:
 
-Bytecode	Source code
-RESUME	
-LOAD_GLOBAL	dict_to_person
-LOAD_FAST	first
-PRECALL_FUNCTION	dict_to_person(first)
-CALL	dict_to_person(first)
-LOAD_GLOBAL	dict_to_person
-LOAD_FAST	second
-PRECALL_FUNCTION	dict_to_person(second)
-CALL	dict_to_person(second)
-BUILD_TUPLE	dict_to_person(first), dict_to_person(second)
-RETURN_VALUE	return dict_to_person(first), dict_to_person(second)
+| Bytecode | Source code |
+|----------|-------------|
+| RESUME	               |
+|-------------|----------------|
+| LOAD_GLOBAL	| dict_to_person |
+|-------------|----------------|
+| LOAD_FAST	| first |
+|-----------|-------|
+| PRECALL_FUNCTION | dict_to_person(first) |
+|-------------|----------------------------|
+| CALL | dict_to_person(first) |
+|-------------|----------------|
+| LOAD_GLOBAL |	dict_to_person |
+|-------------|----------------|
+| LOAD_FAST |	second |
+|-----------|--------|
+| PRECALL_FUNCTION | dict_to_person(second) |
+|------------------|------------------------|
+| CALL |	dict_to_person(second) |
+|------|-------------------------|
+| BUILD_TUPLE |	dict_to_person(first), dict_to_person(second) |
+|-------------|-----------------------------------------------|
+| RETURN_VALUE | return dict_to_person(first), dict_to_person(second) |
+|--------------|------------------------------------------------------|
+
 The new information about line numbers and column offsets allows your tracebacks to be more detailed. You’ve seen how the built-in traceback in Python 3.11 takes advantage of this. As Python 3.11 becomes more widely used, some third-party packages will likely use this information as well.
 
-Note: The .co_positions() method doesn’t only enable better and more precise error messages. It can also provide information to other kinds of tools—like Coverage.py, which measures which parts of your code are executed.
+Storing these offsets takes up some space in Python’s cached bytecode files and in memory during runtime. If this is a concern, you can remove them by setting the PYTHONNODEBUGRANGES environment variable or by using the `-X no_debug_ranges` command-line option:
 
-Storing these offsets takes up some space in Python’s cached bytecode files and in memory during runtime. If this is a concern, you can remove them by setting the PYTHONNODEBUGRANGES environment variable or by using the -X no_debug_ranges command-line option:
-
+```shell
 $ python3.11 -X no_debug_ranges -i scientists.py
-Naturally, turning these off removes the added information in your tracebacks:
+```
 
->>> dict_to_person(scientists[3])
-Traceback (most recent call last):
-  ...
-  File "/home/realpython/scientists.py", line 13, in dict_to_person
-    life_span=(info["birth"]["year"], info["death"]["year"]),
-KeyError: 'year'
+Note that there’s no marker showing which field is missing year, and `.co_positions()` only contains information about the line number. The fields marked None are not stored on disk or in memory.
 
->>> list(convert_pair.__code__.co_positions())
-[(17, None, None, None), (19, None, None, None), (19, None, None, None),
- (19, None, None, None), (19, None, None, None), (19, None, None, None),
- (19, None, None, None), (19, None, None, None), (19, None, None, None),
- (19, None, None, None), (19, None, None, None)]
-Note that there’s no marker showing which field is missing year, and .co_positions() only contains information about the line number. The fields marked None are not stored on disk or in memory.
+The benefit of this is that your .pyc files are smaller and that the code objects take up correspondingly less space in memory.
 
-The benefit of this is that your .pyc files are smaller and that the code objects take up correspondingly less space in memory:
+In this case, you can see that removing the extra information saves four hundred bytes. Normally, this won’t affect your program. You only need to consider turning off this information when you’re running in a [restricted environment](https://realpython.com/embedded-python/) where you really need to optimize your memory usage.
 
-Windows
-Linux + macOS
-C:\> python3.11 -m py_compile scientists.py
-C:\> dir __pycache__\scientists.cpython-311.pyc
-[...]
-              1 File(s)         1,679 bytes
+## Even-Even Better Error Messages Using Third-Party Libraries
 
-C:\> python3.11 -X no_debug_ranges -m py_compile scientists.py
-C:\> dir __pycache__\scientists.cpython-311.pyc
-[...]
-              1 File(s)         1,279 bytes
-In this case, you can see that removing the extra information saves four hundred bytes. Normally, this won’t affect your program. You only need to consider turning off this information when you’re running in a restricted environment where you really need to optimize your memory usage.
-
-Even-Even Better Error Messages Using Third-Party Libraries
 There are a couple of third-party packages that you can use to enhance error messages, including on Python versions older than 3.11. These don’t rely on the improvements that you’ve learned about so far. Instead, they complement those developments, and you can use them to set up an even better debugging workflow for yourself.
 
 The better_exceptions package adds information about variable values to your tracebacks. To try it out, you first need to install it from PyPI:
