@@ -246,16 +246,20 @@ In this case, you can see that removing the extra information saves four hundred
 
 There are a couple of third-party packages that you can use to enhance error messages, including on Python versions older than 3.11. These don’t rely on the improvements that you’ve learned about so far. Instead, they complement those developments, and you can use them to set up an even better debugging workflow for yourself.
 
-The better_exceptions package adds information about variable values to your tracebacks. To try it out, you first need to install it from PyPI:
+The [better_exceptions](https://github.com/qix-/better-exceptions) package adds information about variable values to your tracebacks. To try it out, you first need to install it from [PyPI](https://pypi.org/):
 
+```shell
 $ python -m pip install better_exceptions
-There are a few ways that you can use better_exceptions in your own work. You can, for example, activate it using an environment variable:
+```
 
-Windows
-Linux + macOS
+There are a few ways that you can use `better_exceptions` in your own work. You can, for example, activate it using an environment variable:
+
+```powershell
 C:\> set BETTER_EXCEPTIONS=1
 C:\> python -i scientists.py
-By setting the BETTER_EXCEPTIONS environment variable, you let the package format your tracebacks. For other ways to invoke better_exceptions, you can consult the documentation.
+```
+
+By setting the BETTER_EXCEPTIONS environment variable, you let the package format your tracebacks. For other ways to invoke `better_exceptions`, you can consult the documentation.
 
 Now that you’ve set the environment variable, notice what happens if you call convert_pair() and try to pair up Euclid with himself:
 
