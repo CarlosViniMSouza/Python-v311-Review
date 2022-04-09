@@ -81,3 +81,67 @@ The limitations in the LL(1) parser led to several work-arounds that complicated
 [Python 3.10](https://realpython.com/python310-new-features/) took advantage of the new [PEG parser](https://en.wikipedia.org/wiki/Parsing_expression_grammar) to implement [structural pattern matching](https://realpython.com/python310-new-features/#structural-pattern-matching) and [better error messages](https://realpython.com/python310-new-features/#better-error-messages). This work has continued in Python 3.11, with even more improvements to Python’s error messages.
 
 ## Challenges Before Python 3.11
+
+You’ll soon see examples of the new and improved error messages. First, though, you’ll create a few errors with Python 3.10 or older, so that you’ll appreciate the current challenges.
+
+Say that you have a dataset with some inconsistent data about [famous scientists](https://www.famousscientists.org/). For each scientist, their name, birth date, and death date is recorded:
+
+```python
+# scientists.py
+
+scientists = [
+    {
+        "name": {"first": "Grace", "last": "Hopper"},
+        "birth": {"year": 1906, "month": 12, "day": 9},
+        "death": {"year": 1992, "month": 1, "day": 1},
+    },
+    {"name": {"first": "Euclid"}},
+    {"name": {"first": "Abu Nasr", "last": "Al-Farabi"}, "birth": None},
+    {
+        "name": {"first": "Srinivasa", "last": "Ramanujan"},
+        "birth": {"year": 1887},
+        "death": {"month": 4, "day": 26},
+    },
+    {
+        "name": {"first": "Ada", "last": "Lovelace"},
+        "birth": {"year": 1815},
+        "death": {"year": 1852},
+    },
+    {
+        "name": {"first": "Charles", "last": "Babbage"},
+        "birth": {"year": 1791, "month": 12, "day": 26},
+        "death": {"year": 1871, "month": 10, "day": 18},
+    },
+]
+```
+
+Note that information about each scientist is recorded in a nested dictionary with `name`, `birth`, and `death` fields. However, some information is incomplete. For example, Euclid only has a name, and Ramanujan is missing his year of death.
+
+In order to process this data, you decide to create a [named tuple](https://realpython.com/python-namedtuple/) and a function that can convert the nested dictionary into named tuples:
+
+```python
+# scientists.py
+
+from typing import NamedTuple
+
+class Person(NamedTuple):
+    name: str
+    life_span: tuple
+
+def dict_to_person(info):
+    """Convert a dictionary to a Person object"""
+    return Person(
+        name=f"{info['name']['first']} {info['name']['last']}",
+        life_span=(info["birth"]["year"], info["death"]["year"]),
+    )
+
+scientists = ...  # As above
+```
+
+Note that you’re not doing any validation or error handling in `dict_to_person()`, so you’ll run into issues when you try to process some of the scientists with incomplete data. The rest of the examples in this section are run on Python 3.10 and show that some error messages are ambigous and imprecise.
+
+To see what happens when you process incomplete data, you first attempt to convert the information about [Euclid](https://www.famousscientists.org/euclid/).
+
+Note that `convert_pair()` calls `dict_to_person()` twice, once for each scientist. You can use it to see information about [Ada Lovelace](https://www.famousscientists.org/ada-lovelace/) and [Charles Babbage](https://www.famousscientists.org/charles-babbage/).
+
+The technical reason for such ambiguous error messages is that Python internally uses a line in the source code as the reference for each instruction in a program, even though a line can contain several instructions. That changes in Python 3.11.
