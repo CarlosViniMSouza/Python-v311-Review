@@ -145,3 +145,392 @@ To see what happens when you process incomplete data, you first attempt to conve
 Note that `convert_pair()` calls `dict_to_person()` twice, once for each scientist. You can use it to see information about [Ada Lovelace](https://www.famousscientists.org/ada-lovelace/) and [Charles Babbage](https://www.famousscientists.org/charles-babbage/).
 
 The technical reason for such ambiguous error messages is that Python internally uses a line in the source code as the reference for each instruction in a program, even though a line can contain several instructions. That changes in Python 3.11.
+
+## Improvements in Python 3.11
+
+Python 3.11 improves all the error messages from the previous section. You can check out the details in [PEP 657 – Include Fine Grained Error Locations in Tracebacks](https://www.python.org/dev/peps/pep-0657/). Python’s error messages, including the function calls that led to the error, are called [tracebacks](https://realpython.com/python-traceback/). In this section, you’ll learn how more precise error messages can help you in your debugging efforts.
+
+To start exploring, load scientists.py interactively into your Python 3.11 interpreter:
+
+```shell
+$ python3.11 --version
+Python 3.11.0a5
+
+$ python3.11 -i scientists.py
+```
+
+As in the previous section, this drops you into the interactive REPL, with scientists, `dict_to_person()`, and `convert_pair()` already defined.
+
+You can still create Person objects as long as the information is well-formed. However, observe what happens if you encounter an error.
+
+You still get the same KeyError because of a missing `last` field. But now a visible marker points to the exact location in the source code line, so you can immediately see that `last` is an expected field nested inside `name`.
+
+This is already an improvement, as you don’t need to study the error message so closely. However, the benefit becomes really clear in cases where the original error message is ambigous.
+
+While the message, `'NoneType' object is not subscriptable`, doesn’t tell you much about which part of your data structure happens to be `None`, the marker makes it clear. Here, `info["birth"]` is `None`, so you can’t get the `year` item from it.
+
+The added clarity in error messages will help you quickly track down problems as they come up, so you can fix them.
+
+## Technical Background
+
+Marking which part of a line causes an error may seem like a quick and obvious improvement. Why hasn’t Python included this before?
+
+To appreciate the technical details, you should know a little about how CPython runs your source code:
+
+Your code is tokenized.
+The tokens are parsed into an abstract syntax tree (AST).
+The AST is transformed into a control flow graph (CFG).
+The CFG is converted into bytecode.
+At runtime, the Python interpreter only concerns itself with the bytecode, which is several steps removed from your source code.
+
+Several modules in the standard library allow you to peek behind the curtain of this process. You can, for example, use dis to disassemble the bytecode. Remember the definition of convert_pair():
+
+def convert_pair(first, second):
+    """Convert two dictionaries to Person objects"""
+    return dict_to_person(first), dict_to_person(second)
+As noted, this code is tokenized, parsed, and ultimately converted into bytecode. You can investigate the bytecode of this function as follows:
+
+>>> import dis
+>>> dis.dis(convert_pair)
+ 17           0 RESUME                   0
+
+ 19           2 LOAD_GLOBAL              0 (dict_to_person)
+              4 LOAD_FAST                0 (first)
+              6 PRECALL_FUNCTION         1
+              8 CALL                     0
+             10 LOAD_GLOBAL              0 (dict_to_person)
+             12 LOAD_FAST                1 (second)
+             14 PRECALL_FUNCTION         1
+             16 CALL                     0
+             18 BUILD_TUPLE              2
+             20 RETURN_VALUE
+The meaning of each instruction isn’t important here. Just take note of the numbers in the leftmost column: 17 and 19 are the line numbers of the original source code. You can see that line 19 has been converted into ten bytecode instructions. If any of those instructions fail, earlier versions of Python only had enough information to conclude that the error happened somewhere on line 19.
+
+Python 3.11 introduces a new tuple of four numbers for each bytecode instruction. They indicate the start line, end line, start column offset, and end column offset of each instruction. You can access these tuples by calling the new .co_positions() method on a code object:
+
+>>> list(convert_pair.__code__.co_positions())
+[(17, 17, 0, 0), (19, 19, 11, 25), (19, 19, 26, 31), (19, 19, 11, 32),
+ (19, 19, 11, 32), (19, 19, 34, 48), (19, 19, 49, 55), (19, 19, 34, 56),
+ (19, 19, 34, 56), (19, 19, 11, 56), (19, 19, 4, 56)]
+For example, the first LOAD_GLOBAL instruction has the positions (19, 19, 11, 25). Look at line 19 of your source code. By counting from 0, you find that d is the 11th character in the line. You discover that column offsets 11 to 25 correspond to the text dict_to_person. Connect all line numbers and column offsets to your source code and match them to the bytecode instructions to create the following table:
+
+Bytecode	Source code
+RESUME	
+LOAD_GLOBAL	dict_to_person
+LOAD_FAST	first
+PRECALL_FUNCTION	dict_to_person(first)
+CALL	dict_to_person(first)
+LOAD_GLOBAL	dict_to_person
+LOAD_FAST	second
+PRECALL_FUNCTION	dict_to_person(second)
+CALL	dict_to_person(second)
+BUILD_TUPLE	dict_to_person(first), dict_to_person(second)
+RETURN_VALUE	return dict_to_person(first), dict_to_person(second)
+The new information about line numbers and column offsets allows your tracebacks to be more detailed. You’ve seen how the built-in traceback in Python 3.11 takes advantage of this. As Python 3.11 becomes more widely used, some third-party packages will likely use this information as well.
+
+Note: The .co_positions() method doesn’t only enable better and more precise error messages. It can also provide information to other kinds of tools—like Coverage.py, which measures which parts of your code are executed.
+
+Storing these offsets takes up some space in Python’s cached bytecode files and in memory during runtime. If this is a concern, you can remove them by setting the PYTHONNODEBUGRANGES environment variable or by using the -X no_debug_ranges command-line option:
+
+$ python3.11 -X no_debug_ranges -i scientists.py
+Naturally, turning these off removes the added information in your tracebacks:
+
+>>> dict_to_person(scientists[3])
+Traceback (most recent call last):
+  ...
+  File "/home/realpython/scientists.py", line 13, in dict_to_person
+    life_span=(info["birth"]["year"], info["death"]["year"]),
+KeyError: 'year'
+
+>>> list(convert_pair.__code__.co_positions())
+[(17, None, None, None), (19, None, None, None), (19, None, None, None),
+ (19, None, None, None), (19, None, None, None), (19, None, None, None),
+ (19, None, None, None), (19, None, None, None), (19, None, None, None),
+ (19, None, None, None), (19, None, None, None)]
+Note that there’s no marker showing which field is missing year, and .co_positions() only contains information about the line number. The fields marked None are not stored on disk or in memory.
+
+The benefit of this is that your .pyc files are smaller and that the code objects take up correspondingly less space in memory:
+
+Windows
+Linux + macOS
+C:\> python3.11 -m py_compile scientists.py
+C:\> dir __pycache__\scientists.cpython-311.pyc
+[...]
+              1 File(s)         1,679 bytes
+
+C:\> python3.11 -X no_debug_ranges -m py_compile scientists.py
+C:\> dir __pycache__\scientists.cpython-311.pyc
+[...]
+              1 File(s)         1,279 bytes
+In this case, you can see that removing the extra information saves four hundred bytes. Normally, this won’t affect your program. You only need to consider turning off this information when you’re running in a restricted environment where you really need to optimize your memory usage.
+
+Even-Even Better Error Messages Using Third-Party Libraries
+There are a couple of third-party packages that you can use to enhance error messages, including on Python versions older than 3.11. These don’t rely on the improvements that you’ve learned about so far. Instead, they complement those developments, and you can use them to set up an even better debugging workflow for yourself.
+
+The better_exceptions package adds information about variable values to your tracebacks. To try it out, you first need to install it from PyPI:
+
+$ python -m pip install better_exceptions
+There are a few ways that you can use better_exceptions in your own work. You can, for example, activate it using an environment variable:
+
+Windows
+Linux + macOS
+C:\> set BETTER_EXCEPTIONS=1
+C:\> python -i scientists.py
+By setting the BETTER_EXCEPTIONS environment variable, you let the package format your tracebacks. For other ways to invoke better_exceptions, you can consult the documentation.
+
+Now that you’ve set the environment variable, notice what happens if you call convert_pair() and try to pair up Euclid with himself:
+
+>>> convert_pair(scientists[1], scientists[1])
+Traceback (most recent call last):
+  ...
+  File "/home/realpython/scientists.py", line 19, in convert_pair
+    return dict_to_person(first), dict_to_person(second)
+           │              │       │              └ {'name': {'first': 'Euclid'}}
+           │              │       └ <function dict_to_person at 0x7fe2f2c0c040>
+           │              └ {'name': {'first': 'Euclid'}}
+           └ <function dict_to_person at 0x7fe2f2c0c040>
+  File "/home/realpython/scientists.py", line 12, in dict_to_person
+    name=f"{info['name']['first']} {info['name']['last']}",
+            │                       └ {'name': {'first': 'Euclid'}}
+            └ {'name': {'first': 'Euclid'}}
+KeyError: 'last'
+Notice that each variable name in the traceback is annotated with its corresponding value. This allows you to quickly figure out that the KeyError happens because Euclid’s information is missing the last field.
+
+Note: The currently latest version of better_exceptions, version 0.3.3, replaces Python 3.11’s markers with its own. In other words, the arrows that you learned about in the previous sections are gone. Hopefully, a future version of better_exceptions will be able to show both.
+
+The Friendly project offers a different take on tracebacks. Its original purpose is “to make it easier for beginners […] to understand what caused a program to generate a traceback.” To try Friendly out yourself, install it with pip:
+
+$ python -m pip install friendly
+As the documentation explains, you can use Friendly in different environments, including the console, notebooks, and editors. One neat option is that you can start Friendly after you encounter an error:
+
+>>> dict_to_person(scientists[2])
+Traceback (most recent call last):
+  ...
+  File "/home/realpython/scientists.py", line 13, in dict_to_person
+    life_span=(info["birth"]["year"], info["death"]["year"]),
+               ~~~~~~~~~~~~~^^^^^^^^
+TypeError: 'NoneType' object is not subscriptable
+
+>>> from friendly import start_console
+>>> start_console()
+The Friendly console acts as a wrapper around your regular Python REPL. You can now execute a few new commands that give you more insight into the most recent error:
+
+>>> why()
+Subscriptable objects are typically containers from which you can retrieve
+item using the notation [...]. Using this notation, you attempted to
+retrieve an item from an object of type NoneType which is not allowed.
+
+Note: NoneType means that the object has a value of None.
+
+>>> what()
+A TypeError is usually caused by trying to combine two incompatible types
+of objects, by calling a function with the wrong type of object, or by
+trying to do an operation not allowed on a given type of object.
+The why() function gives you information about your specific error, while what() adds some background on the kind of error you encountered, in this case a TypeError. You can also try out where(), explain(), and www().
+
+Note: Friendly works well with Python 3.11. However, when using development versions of Python, you may experience some issues with library support. Remember that all the libraries you use in this section also work on older versions of Python.
+
+A more recent alternative is Rich, which offers support for annotated tracebacks. To try out Rich, you should first install it:
+
+$ python -m pip install rich
+You activate the enhanced traceback by installing Rich’s exception hook. If you encounter an error, then you’ll get a colored, well-formatted traceback with information about the values of all available variables, as well as more context for the line where the error occurred:
+
+>>> from rich import traceback
+>>> traceback.install(show_locals=True)
+<built-in function excepthook>
+
+>>> dict_to_person(scientists[3])
+╭───────────────── Traceback (most recent call last) ──────────────────╮
+│ <stdin>:1 in <module>                                                │
+│ ╭───────────────────────────── locals ─────────────────────────────╮ │
+│ │ __annotations__ = {}                                             │ │
+│ │    __builtins__ = <module 'builtins' (built-in)>                 │ │
+│ │         __doc__ = None                                           │ │
+│ │      __loader__ = <_frozen_importlib_external.SourceFileLoader   │ │
+│ │                   object at 0x7f933c7b05d0>                      │ │
+│ │        __name__ = '__main__'                                     │ │
+│ │     __package__ = None                                           │ │
+│ │        __spec__ = None                                           │ │
+│ │    convert_pair = <function convert_pair at 0x7f933c628680>      │ │
+│ │  dict_to_person = <function dict_to_person at 0x7f933c837380>    │ │
+│ │      NamedTuple = <function NamedTuple at 0x7f933c615080>        │ │
+│ │          Person = <class '__main__.Person'>                      │ │
+│ │      scientists = [ ... ]                                        │ │
+│ │       traceback = <module 'rich.traceback' from                  │ │
+│ │                   '/home/realpython/.pyenv/versions/311_preview/…│ │
+│ ╰──────────────────────────────────────────────────────────────────╯ │
+│ /home/realpython/scientists.py:13 in dict_to_person                  │
+│                                                                      │
+│   10 │   """Convert a dictionary to a Person object"""               │
+│   11 │   return Person(                                              │
+│   12 │   │   name=f"{info['name']['first']} {info['name']['last']}", │
+│ ❱ 13 │   │   life_span=(info["birth"]["year"], info["death"]["year"])│
+│   14 │   )                                                           │
+│   15                                                                 │
+│   16                                                                 │
+│                                                                      │
+│ ╭──────────────────────────── locals ─────────────────────────────╮  │
+│ │ info = {                                                        │  │
+│ │        │   'name': {                                            │  │
+│ │        │   │   'first': 'Srinivasa',                            │  │
+│ │        │   │   'last': 'Ramanujan'                              │  │
+│ │        │   },                                                   │  │
+│ │        │   'birth': {'year': 1887},                             │  │
+│ │        │   'death': {'month': 4, 'day': 26}                     │  │
+│ │        }                                                        │  │
+│ ╰─────────────────────────────────────────────────────────────────╯  │
+╰──────────────────────────────────────────────────────────────────────╯
+KeyError: 'year'
+See the Rich documentation for more information and other examples of its output.
+
+There are also other projects attempting to improve on Python’s tracebacks and error messages. Several of them were highlighted in Creating Beautiful Tracebacks with Python’s Exception Hooks and discussed on the Python Bytes podcast. All of them also work on versions of Python prior to 3.11.
+
+Other New Features
+In every new version of Python, a handful of features get most of the buzz. However, most of the evolution of Python has happened in small steps, by adding a function here or there, improving some existing functionality, or fixing a long-standing bug.
+
+Python 3.11 is no different. This section shows a few of the smaller improvements waiting for you in Python 3.11.
+
+Cube Roots and Powers of Two
+The math module contains basic math functions and constants. Most of them are wrappers around similar C functions. Python 3.11 adds two new functions to math:
+
+cbrt() calculates cube roots.
+exp2() calculates powers of two.
+Similar to other math functions, these are implemented as wrappers around the corresponding C functions. You can, for example, use cbrt() to confirm Ramanujan’s observation that you can express 1729 as the sum of two cubes in two different ways:
+
+>>> import math
+
+>>> 1 + 1728
+1729
+>>> math.cbrt(1)
+1.0
+>>> math.cbrt(1728)
+12.000000000000002
+
+>>> 729 + 1000
+1729
+>>> math.cbrt(729)
+9.000000000000002
+>>> math.cbrt(1000)
+10.0
+Despite some rounding errors, you note that 1729 can be written as either 1³ + 12³ or 9³ + 10³. In other words, 1729 can be expressed as two different sums of cube numbers.
+
+In earlier versions of Python, you could calculate cube roots and powers of two using exponentiation (**) or math.pow(). Now, cbrt() allows you to find cube roots without explicitly specifying 1/3. Similarly, exp2() gives you a shortcut for calculating powers of two. In Python 3.11, you have several options for doing these calculations:
+
+>>> math.cbrt(729)
+9.000000000000002
+>>> 729**(1/3)
+8.999999999999998
+>>> math.pow(729, 1/3)
+8.999999999999998
+
+>>> math.exp2(16)
+65536.0
+>>> 2**16
+65536
+>>> math.pow(2, 16)
+65536.0
+Note that you might get slightly different results from the different methods because of floating point representation errors. In particular, it seems that exp2() is less accurate than math.pow() on Windows. Sticking to the old approaches for now should serve you well.
+
+You’ll also get different results when calculating cube roots of negative numbers:
+
+>>> math.cbrt(-8)
+-2.0
+
+>>> (-8)**(1/3)
+(1.0000000000000002+1.7320508075688772j)
+
+>>> math.pow(-8, 1/3)
+Traceback (most recent call last):
+  ...
+ValueError: math domain error
+Any number has three cube roots. For real numbers, one of these roots will be a real number, while the two other roots will be a pair of complex numbers. cbrt() returns the principal cube root, including for negative numbers. Exponentiation returns one of the complex cube roots, while math.pow() only handles negative numbers with integer exponents.
+
+Underscores in Fractions
+Python has supported adding underscores to literal numbers since Python 3.6. Usually, you use underscores to group digits in large numbers in order to make them more readable:
+
+>>> number = 60481729
+>>> readable_number = 60_481_729
+In this example, it may not be immediately obvious whether number is approximately six million or sixty million. By grouping the digits into groups of three, it’s clear that readable_number is about sixty million.
+
+Note that this feature is a convenience that allows your source code to be more readable. The underscores have no effect on calculations or how Python represents the number, although you can use f-strings to format a number with underscores:
+
+>>> number == readable_number
+True
+
+>>> readable_number
+60481729
+
+>>> f"{number:_}"
+'60_481_729'
+Note that Python doesn’t care where you put the underscores. You should take care so that they don’t end up adding confusion:
+
+>>> confusing_number = 6_048_1729
+The value of confusing_number is also about sixty million, but you could easily think that it was six million. If you use underscores to separate thousands, then you should be aware that there are different conventions for grouping digits around the world.
+
+Python can accurately represent rational numbers with the fractions module. For example, you can specify the fraction 6048 over 1729 using a string literal as follows:
+
+>>> from fractions import Fraction
+>>> print(Fraction("6048/1729"))
+864/247
+For some reason, underscores weren’t allowed in Fraction string arguments before Python 3.11. Now, you can use underscores when specifying fractions as well:
+
+>>> print(Fraction("6_048/1_729"))
+864/247
+As with other numbers, Python doesn’t care where you put the underscores. It’s up to you to use underscores to improve the readability of your code.
+
+Flexible Calling of Objects
+The operator module contains functions that can be useful when using some of the functional programming features of Python. As a quick example, you can use operator.abs to sort the numbers -3, -2, -1, 0, 1, 2, and 3 by their absolute values:
+
+>>> sorted([-3, -2, -1, 0, 1, 2, 3], key=operator.abs)
+[0, -1, 1, -2, 2, -3, 3]
+By specifying key, you’re sorting the list by first calculating the absolute value of each item.
+
+Python 3.11 adds call() to operator. You can use call() to call functions. For example, you can write the previous example as follows:
+
+>>> operator.call(sorted, [-3, -2, -1, 0, 1, 2, 3], key=operator.abs)
+[0, -1, 1, -2, 2, -3, 3]
+In general, using call() like this isn’t useful. You should stick to calling functions directly. One possible exception is when you call functions that are referenced by variables, as adding call() can make your code more explicit.
+
+The next example shows a better use case for call(). You implement a calculator that can do basic calculations in Norwegian. It uses the parse library to parse a text string and then call() to perform the correct arithmetic operation:
+
+import operator
+import parse
+
+OPERATIONS = {
+    "pluss": operator.add,        # Addition
+    "minus": operator.sub,        # Subtraction
+    "ganger": operator.mul,       # Multiplication
+    "delt på": operator.truediv,  # Division
+}
+EXPRESSION = parse.compile("{operand1:g} {operation} {operand2:g}")
+
+def calculate(text):
+    if (ops := EXPRESSION.parse(text)) and ops["operation"] in OPERATIONS:
+        operation = OPERATIONS[ops["operation"]]
+        return operator.call(operation, ops["operand1"], ops["operand2"])
+OPERATIONS is a mapping that specifies which commands your calculator understands and defines their corresponding functions. EXPRESSION is a template defining the kinds of text strings that you’ll parse. calculate() parses your string and calls the relevant operation if it recognizes it.
+
+Note: You could’ve returned operation(ops["operand1"], ops["operand2"]) instead of using operator.call().
+
+You can use calculate() to do Norwegian arithmetic as follows:
+
+>>> calculate("3 pluss 11")
+14.0
+
+>>> calculate("3 delt på 11")
+0.2727272727272727
+Your calculator figures out that 3 plus 11 equals 14, while 3 divided by 11 is about 0.27.
+
+operator.call() is similar to apply(), which was available in Python 2 and fell out of favor with the introduction of argument unpacking. call() gives you a bit more flexibility in how you call functions. However, as these examples show, you’re usually better off calling functions directly.
+
+Conclusion
+Now you’ve seen some of what Python 3.11 will bring to the table when it’s released in October 2022. You’ve learned about some of its new features and explored how you can already play with the improvements.
+
+In particular, you’ve:
+
+Installed Python 3.11 Alpha on your computer
+Played with the enhanced error tracebacks in Python 3.11 and used them to more efficiently debug your code
+Learned how Python 3.11 builds on Python 3.10’s PEG parser and better error messages
+Explored how third-party libraries can make your debugging even more efficient
+Tried out a few of the smaller improvements in Python 3.11, including new math functions and more readable fractions
+Try out the better error messages in Python 3.11! What do you think about these enhanced tracebacks? Comment below to share your experience.
