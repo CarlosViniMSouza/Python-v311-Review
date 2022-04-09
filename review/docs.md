@@ -261,63 +261,33 @@ C:\> python -i scientists.py
 
 By setting the BETTER_EXCEPTIONS environment variable, you let the package format your tracebacks. For other ways to invoke `better_exceptions`, you can consult the documentation.
 
-Now that you’ve set the environment variable, notice what happens if you call convert_pair() and try to pair up Euclid with himself:
+Now that you’ve set the environment variable, notice what happens if you call `convert_pair()` and try to pair up Euclid with himself.
 
->>> convert_pair(scientists[1], scientists[1])
-Traceback (most recent call last):
-  ...
-  File "/home/realpython/scientists.py", line 19, in convert_pair
-    return dict_to_person(first), dict_to_person(second)
-           │              │       │              └ {'name': {'first': 'Euclid'}}
-           │              │       └ <function dict_to_person at 0x7fe2f2c0c040>
-           │              └ {'name': {'first': 'Euclid'}}
-           └ <function dict_to_person at 0x7fe2f2c0c040>
-  File "/home/realpython/scientists.py", line 12, in dict_to_person
-    name=f"{info['name']['first']} {info['name']['last']}",
-            │                       └ {'name': {'first': 'Euclid'}}
-            └ {'name': {'first': 'Euclid'}}
-KeyError: 'last'
-Notice that each variable name in the traceback is annotated with its corresponding value. This allows you to quickly figure out that the KeyError happens because Euclid’s information is missing the last field.
+Notice that each variable name in the traceback is annotated with its corresponding value. This allows you to quickly figure out that the `KeyError` happens because Euclid’s information is missing the last field.
 
-Note: The currently latest version of better_exceptions, version 0.3.3, replaces Python 3.11’s markers with its own. In other words, the arrows that you learned about in the previous sections are gone. Hopefully, a future version of better_exceptions will be able to show both.
+> **Note:** The currently latest version of `better_exceptions`, version 0.3.3, replaces Python 3.11’s markers with its own. In other words, the arrows that you learned about in the previous sections are gone. Hopefully, a future version of `better_exceptions` will be able to show both.
 
-The Friendly project offers a different take on tracebacks. Its original purpose is “to make it easier for beginners […] to understand what caused a program to generate a traceback.” To try Friendly out yourself, install it with pip:
+The [Friendly](https://friendly-traceback.github.io/docs/) project offers a different take on tracebacks. Its [original purpose](https://aroberge.github.io/friendly-traceback-docs/docs/html/design.html#original-purpose) is "to make it easier for beginners […] to understand what caused a program to generate a traceback." To try Friendly out yourself, install it with [pip](https://realpython.com/what-is-pip/):
 
+```shell
 $ python -m pip install friendly
-As the documentation explains, you can use Friendly in different environments, including the console, notebooks, and editors. One neat option is that you can start Friendly after you encounter an error:
+```
 
->>> dict_to_person(scientists[2])
-Traceback (most recent call last):
-  ...
-  File "/home/realpython/scientists.py", line 13, in dict_to_person
-    life_span=(info["birth"]["year"], info["death"]["year"]),
-               ~~~~~~~~~~~~~^^^^^^^^
-TypeError: 'NoneType' object is not subscriptable
+As the [documentation](https://friendly-traceback.github.io/docs/usage.html) explains, you can use Friendly in different environments, including the console, [notebooks](https://realpython.com/jupyter-notebook-introduction/), and [editors](https://realpython.com/python-ides-code-editors-guide/). One neat option is that you can start Friendly after you encounter an error:
 
->>> from friendly import start_console
->>> start_console()
-The Friendly console acts as a wrapper around your regular Python REPL. You can now execute a few new commands that give you more insight into the most recent error:
+The Friendly console acts as a wrapper around your regular Python REPL. You can now execute a few new commands that give you more insight into the most recent error.
 
->>> why()
-Subscriptable objects are typically containers from which you can retrieve
-item using the notation [...]. Using this notation, you attempted to
-retrieve an item from an object of type NoneType which is not allowed.
+> **Note:** Friendly works well with Python 3.11. However, when using development versions of Python, you may experience some issues with library support. Remember that all the libraries you use in this section also work on older versions of Python.
 
-Note: NoneType means that the object has a value of None.
+A more recent alternative is [Rich](https://rich.readthedocs.io/), which offers support for annotated [tracebacks](https://rich.readthedocs.io/en/stable/traceback.html). To try out Rich, you should first install it:
 
->>> what()
-A TypeError is usually caused by trying to combine two incompatible types
-of objects, by calling a function with the wrong type of object, or by
-trying to do an operation not allowed on a given type of object.
-The why() function gives you information about your specific error, while what() adds some background on the kind of error you encountered, in this case a TypeError. You can also try out where(), explain(), and www().
-
-Note: Friendly works well with Python 3.11. However, when using development versions of Python, you may experience some issues with library support. Remember that all the libraries you use in this section also work on older versions of Python.
-
-A more recent alternative is Rich, which offers support for annotated tracebacks. To try out Rich, you should first install it:
-
+```shell
 $ python -m pip install rich
+```
+
 You activate the enhanced traceback by installing Rich’s exception hook. If you encounter an error, then you’ll get a colored, well-formatted traceback with information about the values of all available variables, as well as more context for the line where the error occurred:
 
+```python
 >>> from rich import traceback
 >>> traceback.install(show_locals=True)
 <built-in function excepthook>
@@ -364,11 +334,14 @@ You activate the enhanced traceback by installing Rich’s exception hook. If yo
 │ ╰─────────────────────────────────────────────────────────────────╯  │
 ╰──────────────────────────────────────────────────────────────────────╯
 KeyError: 'year'
-See the Rich documentation for more information and other examples of its output.
+```
 
-There are also other projects attempting to improve on Python’s tracebacks and error messages. Several of them were highlighted in Creating Beautiful Tracebacks with Python’s Exception Hooks and discussed on the Python Bytes podcast. All of them also work on versions of Python prior to 3.11.
+See the [Rich documentation](https://rich.readthedocs.io/en/stable/traceback.html) for more information and other examples of its output.
 
-Other New Features
+There are also [other projects](https://aroberge.github.io/friendly-traceback-docs/docs/html/design.html#other-similar-projects) attempting to improve on Python’s tracebacks and error messages. Several of them were highlighted in [Creating Beautiful Tracebacks with Python’s Exception Hooks](https://martinheinz.dev/blog/66) and [discussed](https://www.youtube.com/watch?v=JJpv8-w7lG8&t=26m22s) on the [Python Bytes](https://pythonbytes.fm/episodes/show/270/can-errors-really-be-beautiful) podcast. All of them also work on versions of Python prior to 3.11.
+
+## **Other New Features**
+
 In every new version of Python, a handful of features get most of the buzz. However, most of the evolution of Python has happened in small steps, by adding a function here or there, improving some existing functionality, or fixing a long-standing bug.
 
 Python 3.11 is no different. This section shows a few of the smaller improvements waiting for you in Python 3.11.

@@ -1,4 +1,4 @@
 git add -A
-git commit -m "Next Sub-Topic: Even-Even Better Error Messages Using Third-Party Libraries (Part2)"
+git commit -m "Next Sub-Topic: Other New Features"
 git push
 git status
